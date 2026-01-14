@@ -1096,7 +1096,7 @@
  <e en="T" n="MRFOVGeometrySeq" t="00189125"></e>
  <e en="T" n="VolumeLocalizationSeq" t="00189126"></e>
  <e en="T" n="SpectroscopyAcquisitionDataColumns" t="00189127"></e>
- <e en="T" n="DiffusionAnisotropyType" t="00189147"></e>
+ <e en="T" n="DiffusionAnisotropyType" t="00189147">@keep()</e>
  <e en="T" n="FrameReferenceDatetime" t="00189151"></e>
  <e en="T" n="MRMetaboliteMapSeq" t="00189152"></e>
  <e en="T" n="ParallelReductionFactorOutOfPlane" t="00189155"></e>
@@ -1339,12 +1339,12 @@
  <e en="T" n="DetectorActiveAreaOrientation" t="00189558"></e>
  <e en="T" n="PositionerPrimaryAngleDirection" t="00189559">@keep()</e>
  <e en="T" n="DiffusionBMatrixSeq" t="00189601"></e>
- <e en="T" n="DiffusionBValueXX" t="00189602"></e>
- <e en="T" n="DiffusionBValueXY" t="00189603"></e>
- <e en="T" n="DiffusionBValueXZ" t="00189604"></e>
- <e en="T" n="DiffusionBValueYY" t="00189605"></e>
- <e en="T" n="DiffusionBValueYZ" t="00189606"></e>
- <e en="T" n="DiffusionBValueZZ" t="00189607"></e>
+ <e en="T" n="DiffusionBValueXX" t="00189602">@keep()</e>
+ <e en="T" n="DiffusionBValueXY" t="00189603">@keep()</e>
+ <e en="T" n="DiffusionBValueXZ" t="00189604">@keep()</e>
+ <e en="T" n="DiffusionBValueYY" t="00189605">@keep()</e>
+ <e en="T" n="DiffusionBValueYZ" t="00189606">@keep()</e>
+ <e en="T" n="DiffusionBValueZZ" t="00189607">@keep()</e>
  <e en="T" n="FunctionalMRSeq" t="00189621"></e>
  <e en="T" n="FunctionalSettlingPhaseFramesPresent" t="00189622"></e>
  <e en="T" n="FunctionalSyncPulse" t="00189623"></e>
@@ -1470,6 +1470,7 @@
  <e en="T" n="ContributionDescription" t="0018A003">@remove()</e>
  <e en="T" n="DiffusionBValue" t="0019100C">@keep()</e>
  <e en="T" n="DiffusionDirectionality" t="0019100D">@keep()</e>
+ <e en="T" n="DiffusionGradientDirection" t="0019100E">@keep()</e>
  <e en="T" n="StudyInstanceUID" t="0020000D">@hashuid(@UIDROOT,this,PatientID)</e>
  <e en="T" n="SeriesInstanceUID" t="0020000E">@hashuid(@UIDROOT,this,PatientID)</e>
  <e en="T" n="StudyID" t="00200010">@empty()</e>
@@ -4669,6 +4670,15 @@
  <e en="T" n="Item" t="FFFEE000"></e>
  <e en="T" n="ItemDelimitationItem" t="FFFEE00D"></e>
  <e en="T" n="SeqDelimitationItem" t="FFFEE0DD"></e>
+ <e en="T" n="DiffusionGradientDirectionX" t="001910BB">@keep()</e>
+ <e en="T" n="DiffusionGradientDirectionY" t="001910BC">@keep()</e>
+ <e en="T" n="DiffusionGradientDirectionZ" t="001910BD">@keep()</e>
+ <e en="T" n="RescaleSlopeOriginal" t="2005140a">@keep()</e>
+ <e en="T" n="RescaleInterceptOriginal" t="20051409">@keep()</e>
+ <e en="T" n="DiffusionBFactor" t="20011003">@keep()</e>
+ <e en="T" n="DiffusionDirection" t="20011004">@keep()</e>
+ <e en="T" n="BValue" t="00651009">@keep()</e>
+ <e en="T" n="DiffusionDirectionality" t="00651037">@keep()</e>
  <k en="T" t="0018">Keep group 0018</k>
  <k en="T" t="0020">Keep group 0020</k>
  <k en="T" t="0028">Keep group 0028</k>
