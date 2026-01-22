@@ -26,7 +26,7 @@ from .defaults import (
 from .dicom_utils import series_information
 from .hash_clinical import hash_clinical_csvs
 from .ocr_deidentify import perform_ocr
-from .output_dir import copy_and_organize
+from .output_dir import copy_and_organize, copy_files
 from .version import __version__
 
 INPUT_DIR: Path = Path("/input")
@@ -259,7 +259,7 @@ def run(
             show_default=True,
         ),
     ] = OUTPUT_DIR,
-    dcm_deintify: Annotated[
+    dcm_deindentify: Annotated[
         bool,
         typer.Option(
             "--ctp/--no-ctp",
@@ -343,7 +343,7 @@ def run(
         input_dir_images = ocr_output_dir
 
     # Step 2: Run RSNA CTP
-    if dcm_deintify:
+    if dcm_deindentify:
         anon_script = Path(os.getcwd()) / "ctp" / "anon.script"
         ctp_output_dir = (
             Path(tempfile.mkdtemp()) if hierarchical else output_dir.absolute()
@@ -359,6 +359,8 @@ def run(
         # Step 2.1: Copy and organize files if hierarchical
         if hierarchical:
             copy_and_organize(ctp_output_dir, output_dir)
+    else:
+        copy_files(input_dir_images, output_dir)
 
     # Step 3: Hash any clinical CSVs found in the input directory:
     hash_clinical_csvs(input_dir, output_dir, secret_key=pepper, verbose=verbose)

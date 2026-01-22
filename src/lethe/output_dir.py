@@ -34,3 +34,15 @@ def copy_and_organize(input_folder: Path, output_folder: Path):
         shutil.copy(dcm_info.path, output_file)
         cnt += 1
     logger.info(f"Copied and organized hierarchically {cnt} files")
+
+
+def copy_files(input_folder: Path, output_folder: Path):
+    """Copy the all the files in the input folder to the output folder keeping the same folder structure"""
+    cnt = 0
+    for file in input_folder.glob("**/*"):
+        if file.is_file():
+            output_file = output_folder / file.relative_to(input_folder)
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(file, output_file)
+            cnt += 1
+    logger.info(f"Copied {cnt} files")
