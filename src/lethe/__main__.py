@@ -26,7 +26,7 @@ from .defaults import (
 from .dicom_utils import series_information
 from .hash_clinical import hash_clinical_csvs
 from .ocr_deidentify import perform_ocr
-from .output_dir import copy_and_organize, copy_files
+from .output_dir import copy_and_organize
 from .version import __version__
 
 INPUT_DIR: Path = Path("/input")
@@ -259,7 +259,7 @@ def run(
             show_default=True,
         ),
     ] = OUTPUT_DIR,
-    dcm_deindentify: Annotated[
+    dcm_deidentify: Annotated[
         bool,
         typer.Option(
             "--ctp/--no-ctp",
@@ -336,18 +336,17 @@ def run(
     if verbose:
         logger.debug(f"Using secret key: {pepper}")
     # Step 1: Run OCR if enabled
-    input_dir_images = input_dir
+    input_dir_images = input_dir.absolute()
+    output_dir = output_dir.absolute()
     if ocr or paddle_ocr:
         ocr_output_dir = Path(tempfile.mkdtemp())
         perform_ocr(input_dir_images, ocr_output_dir, paddle_ocr, verbose, threads)
         input_dir_images = ocr_output_dir
 
     # Step 2: Run RSNA CTP
-    if dcm_deindentify:
+    if dcm_deidentify:
         anon_script = Path(os.getcwd()) / "ctp" / "anon.script"
-        ctp_output_dir = (
-            Path(tempfile.mkdtemp()) if hierarchical else output_dir.absolute()
-        )
+        ctp_output_dir = Path(tempfile.mkdtemp()) if hierarchical else output_dir
         run_ctp(
             input_dir=input_dir_images,
             output_dir=ctp_output_dir,
@@ -356,13 +355,13 @@ def run(
             pepper=pepper,
             threads=threads,
         )
-        # Step 2.1: Copy and organize files if hierarchical
-        if hierarchical:
-            copy_and_organize(ctp_output_dir, output_dir)
-    else:
-        copy_files(input_dir_images, output_dir)
+        input_dir_images = ctp_output_dir
 
-    # Step 3: Hash any clinical CSVs found in the input directory:
+    # Step 3: Copy and organize files if hierarchical if needed
+    if input_dir_images != output_dir:
+        copy_and_organize(input_dir_images, output_dir, restructure=hierarchical)
+
+    # Step 4: Hash any clinical CSVs found in the input directory:
     hash_clinical_csvs(input_dir, output_dir, secret_key=pepper, verbose=verbose)
 
 
