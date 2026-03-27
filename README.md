@@ -49,33 +49,52 @@ which should return the following:
 ```
  Usage: run [OPTIONS] SITE_ID [INPUT_DIR] [OUTPUT_DIR]
 
-╭─ Arguments ───────────────────────────────────────────────────────────────────────────────────────────╮
-│ *    site_id         TEXT          The SITE-ID provided by the EUCAIM Technical team [required]       │
-│      input_dir       [INPUT_DIR]   Input directory to read DICOM files from [default: /input]         │
-│      output_dir      [OUTPUT_DIR]  Output directory to write processed DICOM files to                 │
-│                                    [default: /output]                                                 │
-╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ─────────────────────────────────────────────────────────────────────────────────────────────╮
-│ --ctp               --no-ctp                      Perform deidentification in the DICOM metadata in   │
-│                                                   image files. Uses the RSNA CTP anonymizer and the   │
-│                                                   custom script                                       │
-│                                                   [default: ctp]                                      │
-│ --ocr                                             Perform OCR (using Tesseract OCR)                   │
-│ --paddle-ocr                                      Perform OCR using PaddleOCR                         │
-│ --threads                                INTEGER  Number of threads that RSNA CTP and PaddleOCR (if   │
-│                                                   enabled) will use                                   │
-│                                                   [default: 10]                                       │
-│ --secret                                 TEXT     Use the supplied key as the secret key for the      │
-│                                                   anonymization                                       │
-│ --hierarchical      --no-hierarchical             Output files will be organized into a hierarchical  │
-│                                                   Patient / Study / Series folder structure using the │
-│                                                   anonymized UIDs as the folder names                 │
-│                                                   [default: hierarchical]                             │
-│ --verbose       -v                                Enable verbose logging                              │
-│ --version       -V                                Print version information                           │
-│ --help                                            Show this message and exit.                         │
-╰───────────────────────────────────────────────────────────────────────────────────────────────────────╯
-
+╭─ Arguments ─────────────────────────────────────────────────────────────────────────────────────────────╮
+│ *    site_id         TEXT          The SITE-ID provided by the EUCAIM Technical team [required]         │
+│      input_dir       [INPUT_DIR]   Input directory to read DICOM files from [default: /input]           │
+│      output_dir      [OUTPUT_DIR]  Output directory to write processed DICOM files to                   │
+│                                    [default: /output]                                                   │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --ctp                   --no-ctp                      Perform deidentification in the DICOM metadata in │
+│                                                       image files. Uses the RSNA CTP anonymizer and the │
+│                                                       custom script                                     │
+│                                                       [default: ctp]                                    │
+│ --pseudonymize                                        Perform pseudonymization by keeping a lookup      │
+│                                                       table for patient ids in the `state-dir`          │
+│                                                       folder.The generated pseudonyms will be of the    │
+│                                                       form `{pseudonym_prefix}{number}`, where the      │
+│                                                       number is generated sequentially starting from 1  │
+│                                                       but reusing existing mappings.                    │
+│ --ocr                                                 Perform OCR (using Tesseract OCR)                 │
+│ --paddle-ocr                                          Perform OCR using PaddleOCR                       │
+│ --threads                                    INTEGER  Number of threads that RSNA CTP and PaddleOCR (if │
+│                                                       enabled) will use                                 │
+│                                                       [default: 10]                                     │
+│ --secret                                     TEXT     Use the supplied key as the secret key for the    │
+│                                                       anonymization. This also enables                  │
+│                                                       'pseudonymization', but in a diferrent way than   │
+│                                                       the --pseudonymize flag: the secret key given     │
+│                                                       here will be used for hashing patient ids, so the │
+│                                                       generated pseudonyms will be different than the   │
+│                                                       ones generated with `--pseudonymize`.             │
+│ --hierarchical          --no-hierarchical             Output files will be organized into a             │
+│                                                       hierarchical Patient / Study / Series folder      │
+│                                                       structure using the anonymized UIDs as the folder │
+│                                                       names                                             │
+│                                                       [default: hierarchical]                           │
+│ --verbose           -v                                Enable verbose logging                            │
+│ --version           -V                                Print version information                         │
+│ --pseudonym-prefix                           TEXT     The prefix to use for the patient's pseudonym id. │
+│                                                       You can use it as a template, passing '{site_id}' │
+│                                                       somewhere in it                                   │
+│                                                       [default: {site_id}_]                             │
+│ --state-dir                                  TEXT     The directory to use for storing state like       │
+│                                                       lookup tables                                     │
+│                                                       [default:                                         │
+│                                                       /Users/ssfak/work/eucaim/anonymize_pipeline/db]   │
+│ --help                                                Show this message and exit.                       │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
 * Option `--ctp` (default) will anonymize the DICOM files using the [RSNA CTP tool](https://mircwiki.rsna.org/index.php?title=The_CTP_DICOM_Pixel_Anonymizer). Supplying the `--no-ctp` option will disable this step.

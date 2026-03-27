@@ -10,9 +10,6 @@ class PseudonymGenerator:
     _max_counter_name = "__max__"
 
     def __init__(self, directory: str, pseudonym_prefix: str):
-        print(
-            f"Initializing PseudonymGenerator with directory={directory} and pseudonym_prefix={pseudonym_prefix}"
-        )
         self._lookup_ix = Index(directory)
         self._pseudo_prefix = pseudonym_prefix
 
