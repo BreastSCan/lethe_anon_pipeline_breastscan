@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from diskcache import Index
 
 
@@ -41,14 +43,13 @@ class PseudonymGenerator:
             return None
         return self._mk_pseudonym(pseudo_id)
 
+    @lru_cache(maxsize=100)
     def get_or_assign_pseudonym(self, patient_id: str) -> str:
         """Get the pseudonym generated for the given patient_id if a mapping exists,
         else assign a new one"""
 
-        pseudonym = self.get_pseudonym(patient_id)
-        if pseudonym is not None:
-            return pseudonym
-        return self._mk_pseudonym(self.assign(patient_id))
+        pseudo_id = self.assign(patient_id)
+        return self._mk_pseudonym(pseudo_id)
 
     def to_dict(self) -> dict[str, str]:
         return {
