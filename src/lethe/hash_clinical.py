@@ -14,6 +14,7 @@ from .defaults import (
     DEFAULT_STUDIES_METADATA_CSV,
     DEFAULT_UIDROOT,
 )
+from .pseudo import PseudonymGenerator
 
 
 @cache
@@ -133,31 +134,56 @@ def _clinical_hasher_factory(
 
 
 @cache
-def _studies_hasher_factory(
-    *,
-    prefix: str,
-    secret_key: str,
-    uidroot: str,
+def _clinical_pseudonymizer_factory(
+    pseudonym_generator: PseudonymGenerator,
 ) -> Callable[[list[str]], list[str]]:
     """
-    Returns a "mapper" that given a list of strings (a row), hashes the patient IDs (assumed to be in the first column)
-    using the CTP algorithm and returns the transformed row.
+    Returns a "mapper" that given a list of strings (a row), pseudonymizes the patient IDs (assumed to be in the first column)
+    according to the lookup table kept by `pseudonym_generator`.
 
-    Args:
-        secret_key: The secret key ("pepper") to use for hashing.
-        prefix: The prefix to use for the hashed patient IDs, defaults to "EUCAIM-"
-                Note that this should be aligned with the anon.script !!!
     Returns:
         the mapper function
     """
 
     def mapper(row: list[str]) -> list[str]:
-        new_patient_id = hash_patient_id(row[0], secret_key=secret_key, prefix=prefix)
+        new_patient_id = pseudonym_generator.get_or_assign_pseudonym(row[0])
+        return [new_patient_id, *row[1:]]
+
+    return mapper
+
+
+@cache
+def _studies_hasher_factory(
+    *,
+    prefix: str,
+    secret_key: str,
+    uidroot: str,
+    pseudonym_generator: PseudonymGenerator | None = None,
+) -> Callable[[list[str]], list[str]]:
+    """
+    Returns a "mapper" that given a list of strings (a row), hashes the patient IDs (assumed to be in the first column)
+    using the CTP algorithm (or the suppied pseudonymizer for the patient ids) and returns the transformed row.
+
+    Args:
+        secret_key: The secret key ("pepper") to use for hashing.
+        prefix: The prefix to use for the hashed patient IDs, defaults to "EUCAIM-"
+                Note that this should be aligned with the anon.script !!!
+        pseudonym_generator: The PseudonymGenerator that keeps the lookup table for the patient ids
+    Returns:
+        the mapper function
+    """
+
+    def mapper(row: list[str]) -> list[str]:
+        new_patient_id = (
+            hash_patient_id(row[0], secret_key=secret_key, prefix=prefix)
+            if pseudonym_generator is None
+            else pseudonym_generator.get_or_assign_pseudonym(row[0])
+        )
 
         hashed_study_uid = hash_uid_using_key(
             uid=row[1],
             prefix=uidroot,
-            key=secret_key,
+            key=secret_key if pseudonym_generator is None else new_patient_id,
         )
 
         return [new_patient_id, hashed_study_uid, *row[2:]]
@@ -220,6 +246,7 @@ def hash_clinical_csvs(
     uidroot: str = DEFAULT_UIDROOT,
     ignore_prefix: str = DEFAULT_IGNORE_CSV_PREFIX,
     verbose: bool = False,
+    pseudonym_generator: PseudonymGenerator | None = None,
 ) -> None:
     """
     Checks the input_dir and finds the clinical CSV files in it. Then, for each file,
@@ -233,24 +260,31 @@ def hash_clinical_csvs(
         logger.warning("No CSV found in input directory")
         return
 
-    csvs_to_copied = []
+    csvs_to_be_copied = []
     csvs_to_be_hashed = []
     for csv in csvs:
         if csv.name.startswith(ignore_prefix):
-            csvs_to_copied.append(csv)
+            csvs_to_be_copied.append(csv)
         else:
             csvs_to_be_hashed.append(csv)
     logger.info(
         f"Found {len(csvs_to_be_hashed)} CSV file(s) in {input_dir} to be hashed "
-        f"and {len(csvs_to_copied)} CSV file(s) to be copied"
+        f"and {len(csvs_to_be_copied)} CSV file(s) to be copied"
     )
     prefix: str = DEFAULT_PATIENT_ID_PREFIX
     for input_clinical_csv in csvs_to_be_hashed:
         output_clinical_csv = output_dir / input_clinical_csv.name
-        mapper = _clinical_hasher_factory(prefix=prefix, secret_key=secret_key)
+        mapper = (
+            _clinical_hasher_factory(prefix=prefix, secret_key=secret_key)
+            if pseudonym_generator is None
+            else _clinical_pseudonymizer_factory(pseudonym_generator)
+        )
         if input_clinical_csv.name == DEFAULT_STUDIES_METADATA_CSV:
             mapper = _studies_hasher_factory(
-                prefix=prefix, secret_key=secret_key, uidroot=uidroot
+                prefix=prefix,
+                secret_key=secret_key,
+                uidroot=uidroot,
+                pseudonym_generator=pseudonym_generator,
             )
         _parse_and_hash_csv(
             input_clinical_csv,
@@ -258,6 +292,6 @@ def hash_clinical_csvs(
             mapper,
             verbose=verbose,
         )
-    for csv in csvs_to_copied:
+    for csv in csvs_to_be_copied:
         output_csv = output_dir / csv.name
         shutil.copy(csv, output_csv)

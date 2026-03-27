@@ -30,6 +30,19 @@ class SeriesInfo:
     image_count: int
 
 
+def unique_patient_ids(input_dir: Path) -> Iterable[str]:
+    seen_so_far: set[str] = set()
+    for root, dirs, files in os.walk(os.fspath(input_dir), topdown=True):
+        for file in files:
+            file_path = os.path.join(root, file)
+            try:
+                dataset: FileDataset = dcmread(file_path, stop_before_pixels=True)
+                seen_so_far.add(dataset.PatientID)
+            except Exception:
+                continue
+    return seen_so_far
+
+
 def series_information(input_dir: Path) -> Iterable[SeriesInfo]:
     seen_so_far: SortedDict[tuple[str, str, str], SeriesInfo] = SortedDict()
     for root, dirs, files in os.walk(os.fspath(input_dir), topdown=True):

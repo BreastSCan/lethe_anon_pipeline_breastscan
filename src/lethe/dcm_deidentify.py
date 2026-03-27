@@ -4,6 +4,9 @@ from hashlib import sha256
 from pathlib import Path
 
 from loguru import logger
+import xml.etree.ElementTree as etree
+
+from lethe.pseudo import PseudonymGenerator
 
 from .defaults import DEFAULT_UIDROOT
 
@@ -29,6 +32,7 @@ def run_ctp(
     site_id: str,
     pepper: str,
     threads: int,
+    pseudonym_generator: PseudonymGenerator | None = None,
 ) -> None:
     # use the folder of the anon.script as the current working directory
     cwd = anon_script.parent
@@ -50,8 +54,6 @@ def run_ctp(
         "DAT.jar",
         "-n",
         str(threads),
-        "-da",
-        str(anon_script),
         "-pUIDROOT",
         DEFAULT_UIDROOT,
         "-pPROVIDERID",
@@ -63,7 +65,37 @@ def run_ctp(
         "-out",
         str(output_dir.absolute()),
     ]
+    if pseudonym_generator is not None:  # YOLO, pseudonymize!!
+        # Create the Lookup Table (lut) to be given to CTP:
+        ctp_lut = output_dir / "__patient_id_lookup_table.txt"
+        with open(ctp_lut, "w") as fp:
+            ctp_type: str = "ptid"
+            for k, v in pseudonym_generator.to_dict().items():
+                fp.write(f"{ctp_type}/{k} = {v}\n")
+        cmd.extend(["-lut", str(ctp_lut)])
+
+        # Make sure that the CTP script has the @lookup command for PatientID:
+        tree = etree.parse(anon_script)
+        patient_id_element = tree.find('e[@t="00100020"]')
+        want = "@lookup(this,ptid)"
+        if (
+            patient_id_element is not None
+            and (patient_id_element.text or "").strip().replace(" ", "") != want
+        ):
+            # Updating CTP script to use @lookup for PatientID:
+            patient_id_element.text = want
+            anon_script = output_dir / "__anon.script"
+            tree.write(
+                anon_script,
+                xml_declaration=False,
+                encoding="UTF-8",
+                short_empty_elements=False,
+            )
+
+    cmd.extend(["-da", str(anon_script)])
+
     logger.info("Running CTP command, output will be saved to {}".format(output_dir))
+    # logger.info(" ".join(cmd))
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd
     )

@@ -20,13 +20,15 @@ from .defaults import (
     DEFAULT_CPU_THREADS,
     DEFAULT_IGNORE_CSV_PREFIX,
     DEFAULT_PATIENT_ID_PREFIX,
+    DEFAULT_STATE_DIR,
     DEFAULT_STUDIES_METADATA_CSV,
     DEFAULT_UIDROOT,
 )
-from .dicom_utils import series_information
+from .dicom_utils import series_information, unique_patient_ids
 from .hash_clinical import hash_clinical_csvs
 from .ocr_deidentify import perform_ocr
 from .output_dir import copy_and_organize
+from .pseudo import PseudonymGenerator
 from .version import __version__
 
 INPUT_DIR: Path = Path("/input")
@@ -88,6 +90,7 @@ def version_callback(value: bool):
         console.print(f"Patient ID prefix: {DEFAULT_PATIENT_ID_PREFIX}")
         console.print(f"Studies metadata CSV: {DEFAULT_STUDIES_METADATA_CSV}")
         console.print(f"Ignore CSV prefix: {DEFAULT_IGNORE_CSV_PREFIX}")
+        console.print(f"State directory: {DEFAULT_STATE_DIR}")
         console.print(f"CPU threads: {DEFAULT_CPU_THREADS}")
         raise typer.Exit()
 
@@ -269,6 +272,17 @@ def run(
             ),
         ),
     ] = True,
+    pseudonymize: Annotated[
+        bool,
+        typer.Option(
+            "--pseudonymize",
+            help=(
+                "Perform pseudonymization by keeping a lookup table for patient ids in the `state-dir` folder."
+                "The generated pseudonyms will be of the form `{pseudonym_prefix}{number}`, "
+                "where the number is generated sequentially starting from 1 but reusing existing mappings."
+            ),
+        ),
+    ] = False,
     ocr: Annotated[
         bool,
         typer.Option("--ocr", help="Perform OCR (using Tesseract OCR)"),
@@ -291,7 +305,12 @@ def run(
         str | None,
         typer.Option(
             "--secret",
-            help="Use the supplied key as the secret key for the anonymization",
+            help=(
+                "Use the supplied key as the secret key for the anonymization."
+                " This also enables 'pseudonymization', but in a diferrent way than the --pseudonymize flag:"
+                " the secret key given here will be used for hashing patient ids, so the generated pseudonyms"
+                " will be different than the ones generated with `--pseudonymize`."
+            ),
         ),
     ] = None,
     hierarchical: Annotated[
@@ -319,6 +338,20 @@ def run(
             help="Print version information",
         ),
     ] = None,
+    pseudonym_prefix: Annotated[
+        str,
+        typer.Option(
+            help="The prefix to use for the patient's pseudonym id. You can use it as a template, passing '{site_id}' somewhere in it",
+            show_default=True,
+        ),
+    ] = "{site_id}_",
+    state_dir: Annotated[
+        str,
+        typer.Option(
+            help="The directory to use for storing state like lookup tables",
+            show_default=True,
+        ),
+    ] = str(DEFAULT_STATE_DIR),
 ):
     if paddle_ocr and ocr:
         rich.print(
@@ -333,8 +366,21 @@ def run(
         sys.exit(1)
 
     rich.print(_header_info())
+
+    pseudonym_gen: PseudonymGenerator | None = None
+    if pseudonymize:
+        pepper = site_id  # We overwrite the "secret" key to be the Site ID since we are pseudonymizing
+        pseudonym_gen = PseudonymGenerator(
+            f"{state_dir}/{site_id}",
+            pseudonym_prefix.format(site_id=site_id),
+        )
+        patient_ids = unique_patient_ids(input_dir)
+        for patient_id in patient_ids:
+            pseudonym_gen.assign(patient_id)
+
     if verbose:
-        logger.debug(f"Using secret key: {pepper}")
+        logger.debug(f"Using 'secret' key: {pepper}")
+
     # Step 1: Run OCR if enabled
     input_dir_images = input_dir.absolute()
     output_dir = output_dir.absolute()
@@ -354,6 +400,7 @@ def run(
             site_id=site_id,
             pepper=pepper,
             threads=threads,
+            pseudonym_generator=pseudonym_gen,
         )
         input_dir_images = ctp_output_dir
 
@@ -362,7 +409,13 @@ def run(
         copy_and_organize(input_dir_images, output_dir, restructure=hierarchical)
 
     # Step 4: Hash any clinical CSVs found in the input directory:
-    hash_clinical_csvs(input_dir, output_dir, secret_key=pepper, verbose=verbose)
+    hash_clinical_csvs(
+        input_dir,
+        output_dir,
+        secret_key=pepper,
+        verbose=verbose,
+        pseudonym_generator=pseudonym_gen,
+    )
 
 
 if __name__ == "__main__":
