@@ -1,5 +1,8 @@
+import sys
 from functools import lru_cache
+from typing import Generator
 
+import clevercsv
 from diskcache import Index
 
 
@@ -51,9 +54,28 @@ class PseudonymGenerator:
         pseudo_id = self.assign(patient_id)
         return self._mk_pseudonym(pseudo_id)
 
-    def to_dict(self) -> dict[str, str]:
-        return {
-            patient_id: self._mk_pseudonym(pseudo_id)
+    def items(self) -> Generator[tuple[str, str], None, None]:
+        return (
+            (patient_id, self._mk_pseudonym(pseudo_id))
             for patient_id, pseudo_id in self._lookup_ix.items()
             if patient_id != self._max_counter_name
-        }
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        return dict(self.items())
+
+    def export_pseudonyms(
+        self,
+        csvfile: str | None = None,
+        dialect: str = "excel-tab",
+    ) -> None:
+        def _do_write(fp_out):
+            writer = clevercsv.writer(fp_out, dialect)
+            writer.writerow(["source_id", "pseudonym"])  # header row
+            writer.writerows(self.items())
+
+        if csvfile is None:
+            _do_write(sys.stdout)
+        else:
+            with open(csvfile, "w") as fp_out:
+                _do_write(fp_out)

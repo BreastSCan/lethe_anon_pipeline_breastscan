@@ -63,6 +63,17 @@ def _valid_secret_key(secret_key: str) -> bool:
     return luhn.is_valid(secret_key, alphabet="0123456789abcdef")
 
 
+def _make_pseudonym_generator(
+    state_dir: str,
+    site_id: str,
+    pseudonym_prefix: str,
+) -> PseudonymGenerator:
+    return PseudonymGenerator(
+        f"{state_dir}/{site_id}",
+        pseudonym_prefix.format(site_id=site_id),
+    )
+
+
 def _header_info() -> str:
     return textwrap.dedent(
         f"""
@@ -240,6 +251,64 @@ def series_info(
     console.print(f"Total count of DICOM files: {total_img_count}", style="bold")
 
 
+@utils_cli.command(
+    help="Export the mappings from source patient ids to the pseunymized ones"
+)
+def export_lookup(
+    site_id: Annotated[
+        str,
+        typer.Argument(
+            help="The SITE-ID provided by the EUCAIM Technical team",
+        ),
+    ],
+    pseudonym_prefix: Annotated[
+        str,
+        typer.Option(
+            help="The prefix to use for the patient's pseudonym id. You can use it as a template, passing '{site_id}' somewhere in it",
+            show_default=True,
+        ),
+    ] = "{site_id}_",
+    state_dir: Annotated[
+        str,
+        typer.Option(
+            help="The directory to use for storing state like lookup tables",
+            show_default=True,
+        ),
+    ] = str(DEFAULT_STATE_DIR),
+    csv: Annotated[
+        bool,
+        typer.Option("--csv", help="Export mappings in CSV format"),
+    ] = False,
+    tsv: Annotated[
+        bool,
+        typer.Option("--tsv", help="Export mappings in TSV format"),
+    ] = False,
+):
+    pseudonym_gen = _make_pseudonym_generator(
+        state_dir=state_dir,
+        site_id=site_id,
+        pseudonym_prefix=pseudonym_prefix,
+    )
+
+    if csv:
+        pseudonym_gen.export_pseudonyms(dialect="excel")
+        return
+    if tsv:
+        pseudonym_gen.export_pseudonyms(dialect="excel-tab")
+        return
+
+    console = Console()
+
+    table = Table(title="Patient ID Lookup Table")
+    table.add_column("Source PatientID")
+    table.add_column("Pseudonym")
+
+    for source_id, pseudonym in pseudonym_gen.items():
+        table.add_row(source_id, pseudonym)
+    console.print()
+    console.print(table)
+
+
 @cli.command(help="Run the DICOM anonymization pipeline")
 def run(
     ctx: typer.Context,
@@ -370,9 +439,10 @@ def run(
     pseudonym_gen: PseudonymGenerator | None = None
     if pseudonymize:
         pepper = site_id  # We overwrite the "secret" key to be the Site ID since we are pseudonymizing
-        pseudonym_gen = PseudonymGenerator(
-            f"{state_dir}/{site_id}",
-            pseudonym_prefix.format(site_id=site_id),
+        pseudonym_gen = _make_pseudonym_generator(
+            state_dir=state_dir,
+            site_id=site_id,
+            pseudonym_prefix=pseudonym_prefix,
         )
         patient_ids = unique_patient_ids(input_dir)
         for patient_id in patient_ids:
