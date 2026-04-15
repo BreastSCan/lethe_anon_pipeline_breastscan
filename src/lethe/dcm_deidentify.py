@@ -1,10 +1,10 @@
 import subprocess
+import xml.etree.ElementTree as etree
 from collections import namedtuple
 from hashlib import sha256
 from pathlib import Path
 
 from loguru import logger
-import xml.etree.ElementTree as etree
 
 from lethe.pseudo import PseudonymGenerator
 
@@ -77,13 +77,13 @@ def run_ctp(
         # Make sure that the CTP script has the @lookup command for PatientID:
         tree = etree.parse(anon_script)
         patient_id_element = tree.find('e[@t="00100020"]')
-        want = "@lookup(this,ptid)"
-        if (
-            patient_id_element is not None
-            and (patient_id_element.text or "").strip().replace(" ", "") != want
-        ):
+        patient_name_element = tree.find('e[@t="00100010"]')
+        pseudo_directive = "@lookup(this,ptid)"
+        if patient_id_element is not None:
             # Updating CTP script to use @lookup for PatientID:
-            patient_id_element.text = want
+            patient_id_element.text = pseudo_directive
+            # and also for PatientName:
+            patient_name_element.text = f"{pseudo_directive}@param(^Anonymous)"
             anon_script = output_dir / "__anon.script"
             tree.write(
                 anon_script,
