@@ -28,7 +28,7 @@ from .defaults import (
 from .dicom_utils import series_information, unique_patient_ids
 from .hash_clinical import hash_clinical_csvs
 from .ocr_deidentify import perform_ocr
-from .output_dir import copy_and_organize, copy_and_organize_parallel
+from .output_dir import copy_and_organize_parallel
 from .pseudo import PseudonymGenerator
 from .version import __version__
 

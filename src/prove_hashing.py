@@ -42,6 +42,38 @@ tag_mapping_hex = {
     'UID': {'tag': '0040A124'},
 }
 
+"""
+# tag mapping dictionary for all of the hashed dicom tags
+    tag_mapping_hex = {
+        'PatientName': {'tag': '00100010'}, 
+        'PatientID': {'tag': '00100020'}, 
+        'AccessionNumber': {'tag': '00080050'}, 
+        'AcquisitionUID': {'tag': '00080017'},
+        'StudyDescription': {'tag': '00081030'},
+        'StudyInstanceUID': {'tag': '0020000D'},
+        'SeriesInstanceUID': {'tag': '0020000E'},
+        'FrameOfReferenceUID': {'tag': '00200052'},
+        'InstanceCreatorUID': {'tag': '00080014'},
+        'SOPInstanceUID': {'tag': '00080018'},
+        'OverlayDate': {'tag': '00080024'},
+        'CurveDate': {'tag': '00080025'},
+        'RefSOPInstanceUID': {'tag': '00081155'},
+        'IrradiationEventUID': {'tag': '00083010'},
+        'DeviceUID': {'tag': '00181002'},
+        'TargetUID': {'tag': '00182042'},
+        'SourceStartDateTime': {'tag': '00189369'},
+        'StartAcquisitionDateTime': {'tag': '00189516'},
+        'EndAcquisitionDateTime': {'tag': '00189517'},
+        'SynchronizationFrameOfReferenceUID': {'tag': '00200200'},
+        'ConcatenationUID': {'tag': '00209161'},
+        'DimensionOrganizationUID': {'tag': '00209164'},
+        'PaletteColorLUTUID': {'tag': '00281199'},
+        'LargePaletteColorLUTUID': {'tag': '00281214'},
+        'SpecimenUID': {'tag': '00400554'},
+        'UID': {'tag': '0040A124'},
+    }
+"""
+
 tag_mapping_test = {
     'PatientID': {'tag': '00100020'}, 
     'AcquisitionUID': {'tag': '00080017'},
@@ -115,3 +147,30 @@ for hash in hash_lists:
     #hashed_value = f"2.25.{big_int}"
     hashed_value = encrypted_bytes.hex()
     print(f"Value {hash} of length {len(hash)} hashed to {hashed_value} of length {len(hashed_value)}")
+
+
+
+
+"""
+    tag_mapping = {
+        'PatientName': {'tag': (16, 16), 'is_identifier': False}, 
+        'PatientID': {'tag': (16, 32), 'is_identifier': True}, 
+        'StudyDate': {'tag': (8, 32), 'is_identifier': False}, 
+        'Modality': {'tag': (8, 96), 'is_identifier': False}, 
+        'AccessionNumber': {'tag': (8, 80), 'is_identifier': False}, 
+        'StudyDescription': {'tag': (8, 4144), 'is_identifier': False}, 
+        'StudyUID': {'tag': (32, 13), 'is_identifier': True}, 
+        'StudyTime': {'tag': (8, 48), 'is_identifier': False},
+        'SerieUID': {'tag': (32, 14), 'is_identifier': False}
+    }
+    tag_mapping = {
+        'PatientName': {'tag': (16, 16)}, 
+        'PatientID': {'tag': (16, 32)}, 
+        'AccessionNumber': {'tag': (8, 80)}, 
+        'AcquisitionUID': {'tag': (8, 23)},
+        'StudyDescription': {'tag': (8, 4144)},
+        'StudyInstanceUID': {'tag': (32, 13)},
+        'SeriesInstanceUID': {'tag': (32, 14),},
+        'FrameOfReferenceUID': {'tag': (32, 82),},
+    }    
+"""
