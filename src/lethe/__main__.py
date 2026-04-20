@@ -342,8 +342,8 @@ def run(
         typer.Option(
             "--bs_hash/--no-bs_hash",
             help=(
-                "Perform deidentification in the DICOM metadata in image files. "
-                "Uses the RSNA CTP anonymizer and the custom script"
+                "Perform encryption of the patientIDs based on the BreastSCan scheme."
+                "Uses the RSNA CTP anonymizer and the custom script."
             ),
         ),
     ] = True,
@@ -479,7 +479,7 @@ def run(
     # Step 2: Run BreastScan patientID hashing.
     if bscan_dcm_deidentify:
         anon_script = Path(os.getcwd()) / "ctp" / "anon_BS.script"
-        logger.info("Running BreastScan hashing scheme.")
+        logger.info("Running BreastScan encryption scheme.")
         hash_output_dir = Path(tempfile.mkdtemp()) if hierarchical else output_dir
         hash_BS_id(
             input_dir=input_dir_images,
