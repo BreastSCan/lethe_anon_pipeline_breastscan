@@ -16,6 +16,7 @@ from stdnum import luhn
 from typing_extensions import Annotated
 
 from .dcm_deidentify import run_ctp
+from .bscan_hashing import hash_BS_id
 from .defaults import (
     DEFAULT_CPU_THREADS,
     DEFAULT_IGNORE_CSV_PREFIX,
@@ -27,7 +28,7 @@ from .defaults import (
 from .dicom_utils import series_information, unique_patient_ids
 from .hash_clinical import hash_clinical_csvs
 from .ocr_deidentify import perform_ocr
-from .output_dir import copy_and_organize
+from .output_dir import copy_and_organize_parallel
 from .pseudo import PseudonymGenerator
 from .version import __version__
 
@@ -308,7 +309,6 @@ def export_lookup(
     console.print()
     console.print(table)
 
-
 @cli.command(help="Run the DICOM anonymization pipeline")
 def run(
     ctx: typer.Context,
@@ -316,6 +316,12 @@ def run(
         str,
         typer.Argument(
             help="The SITE-ID provided by the EUCAIM Technical team",
+        ),
+    ],
+    project_id: Annotated[
+        str,
+        typer.Argument(
+            help="The PROJECT-ID provided by the DATA HOLDER team",
         ),
     ],
     input_dir: Annotated[
@@ -331,6 +337,16 @@ def run(
             show_default=True,
         ),
     ] = OUTPUT_DIR,
+    bscan_dcm_deidentify: Annotated[
+        bool,
+        typer.Option(
+            "--bs_hash/--no-bs_hash",
+            help=(
+                "Perform encryption of the patientIDs based on the BreastSCan scheme."
+                "Uses the RSNA CTP anonymizer and the custom script."
+            ),
+        ),
+    ] = True,
     dcm_deidentify: Annotated[
         bool,
         typer.Option(
@@ -422,6 +438,7 @@ def run(
         ),
     ] = str(DEFAULT_STATE_DIR),
 ):
+
     if paddle_ocr and ocr:
         rich.print(
             "[red][bold]Error:[/bold] Cannot use both PaddleOCR and TesseractOCR: please choose one, use --help for usage information[/red]"
@@ -435,7 +452,7 @@ def run(
         sys.exit(1)
 
     rich.print(_header_info())
-
+    logger.info(f"Running with {threads} threads")
     pseudonym_gen: PseudonymGenerator | None = None
     if pseudonymize:
         pepper = site_id  # We overwrite the "secret" key to be the Site ID since we are pseudonymizing
@@ -459,9 +476,24 @@ def run(
         perform_ocr(input_dir_images, ocr_output_dir, paddle_ocr, verbose, threads)
         input_dir_images = ocr_output_dir
 
-    # Step 2: Run RSNA CTP
-    if dcm_deidentify:
+    # Step 2: Run BreastScan patientID hashing.
+    if bscan_dcm_deidentify:
+        anon_script = Path(os.getcwd()) / "ctp" / "anon_BS.script"
+        logger.info("Running BreastScan encryption scheme.")
+        hash_output_dir = Path(tempfile.mkdtemp()) if hierarchical else output_dir
+        hash_BS_id(
+            input_dir=input_dir_images,
+            output_dir=hash_output_dir,
+            site_id=site_id,
+            project_id=project_id,
+            threads=threads,
+        )
+        input_dir_images = hash_output_dir
+    else:
         anon_script = Path(os.getcwd()) / "ctp" / "anon.script"
+
+    # Step 3: Run data anonymization
+    if dcm_deidentify:
         ctp_output_dir = Path(tempfile.mkdtemp()) if hierarchical else output_dir
         run_ctp(
             input_dir=input_dir_images,
@@ -474,19 +506,21 @@ def run(
         )
         input_dir_images = ctp_output_dir
 
-    # Step 3: Copy and organize files if hierarchical if needed
+    # Step 4: Copy and organize files if hierarchical if needed
     if input_dir_images != output_dir:
-        copy_and_organize(input_dir_images, output_dir, restructure=hierarchical)
+        logger.info("Copying and reorganizing files.")
+        #copy_and_organize(input_dir_images, output_dir, restructure=hierarchical)
+        copy_and_organize_parallel(input_dir_images, output_dir, restructure=hierarchical, threads = threads) # Version with parallelization
 
-    # Step 4: Hash any clinical CSVs found in the input directory:
-    hash_clinical_csvs(
-        input_dir,
-        output_dir,
-        secret_key=pepper,
-        verbose=verbose,
-        pseudonym_generator=pseudonym_gen,
-    )
-
+    # Step 5: Hash any clinical CSVs found in the input directory:
+    if dcm_deidentify:
+        hash_clinical_csvs(
+            input_dir,
+            output_dir,
+            secret_key=pepper,
+            verbose=verbose,
+            pseudonym_generator=pseudonym_gen,
+        )
 
 if __name__ == "__main__":
     cli(prog_name="")

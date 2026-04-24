@@ -2,13 +2,16 @@
 Copy from an input folder all dicom files to an output folder. In hte output folder the files
 will be organized in a hierarchical structure based on the patient ID , study UID, and series UID.
 """
-
+import os
 import shutil
 from pathlib import Path
 
 from loguru import logger
 
 from .dicom_utils import dcm_generator
+
+from concurrent.futures import ThreadPoolExecutor
+from pydicom import dcmread
 
 
 def copy_and_organize(
@@ -51,3 +54,59 @@ def copy_and_organize(
         cnt += 1
     msg = "Copied and organized hierarchically" if restructure else "Copied"
     logger.info(f"{msg} {cnt} DICOM files")
+
+def process_single_file(file_path: str, input_folder: Path, output_folder: Path, restructure: bool):
+    """Worker function to process and copy a single DICOM file."""
+    try:
+        # Read metadata
+        ds = dcmread(file_path, stop_before_pixels=True)
+        
+        # Determine destination
+        if restructure:
+            dest_dir = (
+                output_folder / 
+                str(ds.PatientID) / 
+                str(ds.StudyInstanceUID) / 
+                str(ds.SeriesInstanceUID)
+            )
+            # Use InstanceNumber for filename or a hash to avoid collisions in parallel
+            dest_file = dest_dir / f"{int(ds.InstanceNumber):05d}.dcm"
+        else:
+            rel_path = Path(file_path).parent.relative_to(input_folder)
+            dest_dir = output_folder / rel_path
+            dest_file = dest_dir / Path(file_path).name
+
+        # Create directory (exist_ok=True is critical for multithreading)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        
+        shutil.copy(file_path, dest_file)
+        return True
+    except Exception as e:
+        # Log or skip files that aren't valid DICOMs
+        logger.error(f"Failed to copy {file_path} to output folder with error: {e}")
+        return False
+
+def copy_and_organize_parallel(
+    input_folder: Path,
+    output_folder: Path,
+    restructure: bool = True,
+    threads: int = 10
+):
+    # 1. Collect all file paths first
+    all_files = []
+    for root, _, files in os.walk(os.fspath(input_folder)):
+        for file in files:
+            all_files.append(os.path.join(root, file))
+
+    # 2. Use a ThreadPoolExecutor to run the I/O tasks
+    cnt = 0
+    with ThreadPoolExecutor(max_workers=threads) as executor:
+        # Map the worker function across all files
+        results = list(executor.map(
+            lambda f: process_single_file(f, input_folder, output_folder, restructure),
+            all_files
+        ))
+        cnt = sum(1 for r in results if r)
+
+    msg = "Copied and organized hierarchically" if restructure else "Copied"
+    print(f"{msg} {cnt} DICOM files")
