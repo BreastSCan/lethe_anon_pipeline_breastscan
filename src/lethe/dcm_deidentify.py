@@ -82,6 +82,7 @@ def run_ctp(
         if patient_id_element is not None:
             # Updating CTP script to use @lookup for PatientID:
             patient_id_element.text = pseudo_directive
+            # and also for PatientName:
             patient_name_element.text = f"{pseudo_directive}@param(^Anonymous)"
             anon_script = output_dir / "__anon.script"
             tree.write(
