@@ -55,9 +55,10 @@ cli.add_typer(utils_cli, name="utils", help="Additional utilities")
 # Input settings configuration
 class Settings(BaseModel):
     site_id: str | None = None
+    pepper: str | None = None
+    uid_root: str | None = str(DEFAULT_UIDROOT)
     input_dir: Path = Path("/input")
     output_dir: Path = Path("/output")
-    pepper: str | None = None
     bscan_dcm_deidentify: bool = True
     dcm_deidentify: bool = True
     pseudonymize: bool = False
@@ -103,6 +104,12 @@ def _valid_secret_key(secret_key: str,bscan_encrypt:bool) -> bool:
         if len(secret_key) != 33:
             return False
         return luhn.is_valid(secret_key, alphabet="0123456789abcdef")
+
+def _valid_uid(uid_root:str)->bool:
+    if len(uid_root) < 18:
+        return False
+    alphabet="0123456789."
+    return bool(uid_root) and all(c in alphabet for c in uid_root)
 
 def _make_pseudonym_generator(
     state_dir: str,
@@ -351,7 +358,13 @@ def run(
     site_id: Annotated[
         str | None,
         typer.Argument(
-            help="The SITE-ID provided by the BREASTCAN technical team, used for anonymization."
+            help="The SITE-ID provided by the BREASTSCAN technical team, used for anonymization."
+        )
+    ] = None,
+    uid_root: Annotated[
+        str | None,
+        typer.Argument(
+            help="The site OID provided by the BREASTSCAN technical team, which will be used as the root of the anonymized UIDs."
         )
     ] = None,
     pepper: Annotated[
@@ -468,6 +481,7 @@ def run(
 
     cli_values = {
         "site_id": site_id,
+        "uid_root":uid_root,
         "input_dir": None,
         "output_dir": None,
         "pepper":pepper,
@@ -486,6 +500,7 @@ def run(
 
     settings = merge_settings(config_settings, cli_values)
     site_id = settings.site_id
+    uid_root = settings.uid_root
     input_dir = settings.input_dir
     output_dir = settings.output_dir
     pepper = settings.pepper
@@ -506,7 +521,11 @@ def run(
             "[red][bold]Error:[/bold] Missing site id, use --help for usage information[/red]"
         )
         sys.exit(1)
-    
+
+    if not _valid_uid(uid_root):
+        rich.print("[red][bold]Error:[/bold] Invalid uid_root[/red]")
+        sys.exit(1)
+
     if paddle_ocr and ocr:
         rich.print(
             "[red][bold]Error:[/bold] Cannot use both PaddleOCR and TesseractOCR: please choose one, use --help for usage information[/red]"
@@ -575,6 +594,7 @@ def run(
             anon_script=anon_script,
             site_id=site_id,
             pepper=pepper,
+            uid_root = uid_root,
             threads=threads,
             pseudonym_generator=pseudonym_gen,
         )
