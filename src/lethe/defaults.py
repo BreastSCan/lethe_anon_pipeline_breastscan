@@ -3,6 +3,6 @@ from pathlib import Path
 DEFAULT_UIDROOT = "1.3.6.1.4.1.58108.2023"
 DEFAULT_PATIENT_ID_PREFIX = "EUCAIM-" # Only used when EUCAIM anonymization is enabled (not BSCAN)
 DEFAULT_IGNORE_CSV_PREFIX = "_"
-DEFAULT_STUDIES_METADATA_CSV = "dcm_studies_metadata.csv"
+DEFAULT_STUDIES_METADATA_CSV = "dicom_series_ent.csv"
 DEFAULT_CPU_THREADS = 10
 DEFAULT_STATE_DIR = Path(__file__).parent.parent.parent / "db"  # LOL!
