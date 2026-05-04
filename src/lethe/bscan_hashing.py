@@ -111,12 +111,12 @@ def hash_BS_id(
     input_dir: Path, # folder containing all the data
     output_dir: Path,
     site_id: str,
-    project_id:str,
+    pepper:str,
     threads: int,
 ):
     # One thread finds all the dicom files (the producer) and distributes them to the rest of the threads (the consumers) for hashing 
     task_queue = Queue(maxsize=5000)
-    encryptor = IdentifierEncryptor(site_id, project_id)
+    encryptor = IdentifierEncryptor(site_id, pepper)
     
     num_consumers = max(1, threads - 1)
     # Launch Workers
