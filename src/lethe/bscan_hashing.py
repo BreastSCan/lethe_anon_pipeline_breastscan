@@ -54,13 +54,13 @@ def hash_patient_id(
             raise
 
         hashed_patient_id = encrypted_bytes.hex()
-        ds[patient_id_tag].value = hashed_patient_id
+        ds[patient_id_tag].value = f"BSCAN-{hashed_patient_id}"
 
         # Always set PatientName to "<hashed_patient_id> , Anonymous"
         if patient_name_tag not in ds:
             raise KeyError(f"PatientName tag not found in {dicom_file}")
 
-        ds[patient_name_tag].value = f"BREASTCAN-{hashed_patient_id}, Anonymous"
+        ds[patient_name_tag].value = f"BSCAN-{hashed_patient_id}, Anonymous"
         
         # Save the modified file
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -111,12 +111,12 @@ def hash_BS_id(
     input_dir: Path, # folder containing all the data
     output_dir: Path,
     site_id: str,
-    project_id:str,
+    pepper:str,
     threads: int,
 ):
     # One thread finds all the dicom files (the producer) and distributes them to the rest of the threads (the consumers) for hashing 
     task_queue = Queue(maxsize=5000)
-    encryptor = IdentifierEncryptor(site_id, project_id)
+    encryptor = IdentifierEncryptor(site_id, pepper)
     
     num_consumers = max(1, threads - 1)
     # Launch Workers
