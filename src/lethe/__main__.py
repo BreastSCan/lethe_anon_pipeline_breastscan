@@ -26,7 +26,7 @@ from .defaults import (
     DEFAULT_UIDROOT,
 )
 from .dicom_utils import series_information, unique_patient_ids
-from .hash_clinical import hash_clinical_csvs
+from .hash_clinical import hash_clinical_csvs, hash_clinical_csvs_bscan
 from .ocr_deidentify import perform_ocr
 from .output_dir import copy_and_organize_parallel
 from .pseudo import PseudonymGenerator
@@ -607,7 +607,16 @@ def run(
         copy_and_organize_parallel(input_dir_images, output_dir, restructure=hierarchical, threads = threads) # Version with parallelization
 
     # Step 5: Hash any clinical CSVs found in the input directory:
-    if dcm_deidentify:
+    if bscan_dcm_deidentify:
+        hash_clinical_csvs_bscan(
+            input_dir,
+            output_dir,
+            site_id=site_id,
+            secret_key=pepper,
+            uid_root = uid_root,
+            verbose=verbose,
+        )
+    elif dcm_deidentify:
         hash_clinical_csvs(
             input_dir,
             output_dir,
