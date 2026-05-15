@@ -26,12 +26,12 @@ from .defaults import (
     DEFAULT_UIDROOT,
 )
 from .dicom_utils import series_information, unique_patient_ids
-from .hash_clinical import hash_clinical_csvs
+from .hash_clinical import hash_clinical_csvs, hash_clinical_csvs_bscan
 from .ocr_deidentify import perform_ocr
 from .output_dir import copy_and_organize_parallel
 from .pseudo import PseudonymGenerator
 from .version import __version__
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 INPUT_DIR: Path = Path("/input")
 OUTPUT_DIR: Path = Path("/output")
@@ -54,8 +54,10 @@ cli.add_typer(utils_cli, name="utils", help="Additional utilities")
 
 # Input settings configuration
 class Settings(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     site_id: str | None = None
-    pepper: str | None = None
+    pepper: str | None = Field(None, alias='secret')
     uid_root: str | None = str(DEFAULT_UIDROOT)
     input_dir: Path = Path("/input")
     output_dir: Path = Path("/output")
@@ -358,13 +360,18 @@ def run(
     site_id: Annotated[
         str | None,
         typer.Argument(
-            help="The SITE-ID provided by the BREASTSCAN technical team, used for anonymization."
+            help="The SITE-ID used for anonymization. It must be provided."
         )
     ] = None,
     uid_root: Annotated[
         str | None,
-        typer.Argument(
-            help="The site OID provided by the BREASTSCAN technical team, which will be used as the root of the anonymized UIDs."
+        typer.Option(
+            "--uid_root",
+            help=(
+                "The site OID which will be used as the root of the anonymized UIDs."
+                "Set to 'Computational BioMedicine Laboratory Greece's OID by default."
+                "Each BREASTSCAN Data Holder should have an independent OID provided by an institution."
+                )
         )
     ] = None,
     pepper: Annotated[
@@ -376,6 +383,9 @@ def run(
                 " This also enables 'pseudonymization', but in a diferrent way than the --pseudonymize flag:"
                 " the secret key given here will be used for hashing patient ids, so the generated pseudonyms"
                 " will be different than the ones generated with `--pseudonymize`."
+                "If BREASTSCAN encryption is enabled, the key MUST be provided by the user. "
+                "It should be between 8 and 32 characters long and exclusively numbers or letters."
+                "If BREASTSCAN encryption is disabled, the key will be automatically generated and can be displayed to the console with the 'verbose' option."
             )
         )
     ] = None,
@@ -386,8 +396,9 @@ def run(
         typer.Option(
         "--bs_hash/--no-bs_hash",
         help=(
-                "Perform encryption of the patientIDs based on the BreastSCan scheme."
+                "Perform encryption of the patientIDs based on the BREASTSCAN scheme."
                 "Uses the RSNA CTP anonymizer and the custom script."
+                "Set to TRUE by default."
             )
         )
     ] = None,
@@ -397,7 +408,8 @@ def run(
             "--ctp/--no-ctp",
             help=(
                     "Perform deidentification in the DICOM metadata in image files. "
-                    "Uses the RSNA CTP anonymizer and the custom script"
+                    "Uses the RSNA CTP anonymizer and the custom script."
+                    "Set to TRUE by default."
                 )
             )
     ] = None,
@@ -409,6 +421,7 @@ def run(
                 "Perform pseudonymization by keeping a lookup table for patient ids in the `state-dir` folder."
                 "The generated pseudonyms will be of the form `{pseudonym_prefix}{number}`, "
                 "where the number is generated sequentially starting from 1 but reusing existing mappings."
+                "Only relevant if BREASTSCAN encryption is disabled. Set to FALSE by default."
             )
         )
     ] = None,
@@ -417,7 +430,7 @@ def run(
         typer.Option(
             "--ocr", 
             is_flag=True,
-            help="Perform OCR (using Tesseract OCR)"
+            help="Perform OCR (using Tesseract OCR). Set to FALSE by default."
             )
     ] = None,
     paddle_ocr: Annotated[
@@ -425,13 +438,13 @@ def run(
         typer.Option(
             "--paddle-ocr", 
             is_flag=True,
-            help="Perform OCR using PaddleOCR",
+            help="Perform OCR using PaddleOCR. Set to FALSE by default.",
         )
     ] = None,
     threads: Annotated[
         int | None, 
         typer.Option(
-            help="Number of threads that RSNA CTP and PaddleOCR (if enabled) will use"
+            help="Number of threads the tool will use. Set to 10 by default."
         )
     ] = None,
     hierarchical: Annotated[
@@ -441,7 +454,7 @@ def run(
             help=(
                 "Output files will be organized into a hierarchical "
                 "Patient / Study / Series folder structure using the anonymized UIDs "
-                "as the folder names"
+                "as the folder names. Set to TRUE by default."
             )
         )
     ] = None,
@@ -450,7 +463,7 @@ def run(
         typer.Option(
             "--verbose", 
             "-v",
-            help="Enable verbose logging", 
+            help="Enable verbose logging. Set to FALSE by default.", 
             is_flag=True
         )
     ] = None,
@@ -466,7 +479,7 @@ def run(
     pseudonym_prefix: Annotated[
         str | None, 
         typer.Option(
-            help="The prefix to use for the patient's pseudonym id. You can use it as a template, passing '{site_id}'"
+            help="The prefix to use for the patient's pseudonym id. You can use it as a template, passing '{site_id}'. Only relevant if 'pseudonimize' is enabled."
         )
     ] = None,
     state_dir: Annotated[
@@ -538,6 +551,11 @@ def run(
         )
         sys.exit(1)
 
+    if bscan_dcm_deidentify and uid_root==str(DEFAULT_UIDROOT):
+        rich.print(
+            "[red][bold]Warning:[/bold] Using 'Computational BioMedicine Laboratory Greece's OID as the UID_ROOT. Which is the value by default. Each BREASTSCAN data holder should have an independent OID provided by an institution.[/red]"
+        )
+
     if not pepper:
         pepper = _create_secret_key()  # Create a time based (UUIDv7) string as secret
     elif not _valid_secret_key(pepper,bscan_dcm_deidentify):
@@ -569,10 +587,10 @@ def run(
         perform_ocr(input_dir_images, ocr_output_dir, paddle_ocr, verbose, threads)
         input_dir_images = ocr_output_dir
 
-    # Step 2: Run BreastScan patientID hashing.
+    # Step 2: Run BREASTSCAN patientID hashing.
     if bscan_dcm_deidentify:
         anon_script = Path(os.getcwd()) / "ctp" / "anon_BS.script"
-        logger.info("Running BreastScan encryption scheme.")
+        logger.info("Running BREASTSCAN encryption scheme.")
         hash_output_dir = Path(tempfile.mkdtemp()) if hierarchical else output_dir
         hash_BS_id(
             input_dir=input_dir_images,
@@ -607,7 +625,16 @@ def run(
         copy_and_organize_parallel(input_dir_images, output_dir, restructure=hierarchical, threads = threads) # Version with parallelization
 
     # Step 5: Hash any clinical CSVs found in the input directory:
-    if dcm_deidentify:
+    if bscan_dcm_deidentify:
+        hash_clinical_csvs_bscan(
+            input_dir,
+            output_dir,
+            site_id=site_id,
+            secret_key=pepper,
+            uid_root = uid_root,
+            verbose=verbose,
+        )
+    elif dcm_deidentify:
         hash_clinical_csvs(
             input_dir,
             output_dir,

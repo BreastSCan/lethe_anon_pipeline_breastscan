@@ -4,18 +4,19 @@ from hashlib import md5
 from pathlib import Path
 from typing import Callable
 from xml.etree import ElementTree as ET
-
 import clevercsv
 from loguru import logger
 
 from .defaults import (
     DEFAULT_IGNORE_CSV_PREFIX,
     DEFAULT_PATIENT_ID_PREFIX,
+    DEFAULT_PATIENT_ID_PREFIX_BSCAN,
     DEFAULT_STUDIES_METADATA_CSV,
     DEFAULT_UIDROOT,
 )
 from .pseudo import PseudonymGenerator
-
+from .bscan_hashing import hash_patient_id_bscan
+from .encryptor import IdentifierEncryptor
 
 @cache
 def _anonymization_info(anon_script: str):
@@ -285,6 +286,102 @@ def hash_clinical_csvs(
                 secret_key=secret_key,
                 uidroot=uidroot,
                 pseudonym_generator=pseudonym_generator,
+            )
+        _parse_and_hash_csv(
+            input_clinical_csv,
+            output_clinical_csv,
+            mapper,
+            verbose=verbose,
+        )
+    for csv in csvs_to_be_copied:
+        output_csv = output_dir / csv.name
+        shutil.copy(csv, output_csv)
+
+@cache
+def _clinical_hasher_factory_bscan(
+    *,
+    encryptor:IdentifierEncryptor,
+) -> Callable[[list[str]], list[str]]:
+    """
+    Returns a "mapper" that given a list of strings (a row), hashes the patient IDs (assumed to be in the first column)
+    using the BREASTSCAN encryption scheme and returns the transformed row.
+    """
+
+    def mapper(row: list[str]) -> list[str]:
+        new_patient_id = hash_patient_id_bscan(row[0],encryptor=encryptor)
+        return [new_patient_id, *row[1:]]
+
+    return mapper
+
+@cache
+def _studies_hasher_factory_bscan(
+    *,
+    encryptor:IdentifierEncryptor,
+    secret_key: str,
+    uidroot: str,
+) -> Callable[[list[str]], list[str]]:
+    """
+    Returns a "mapper" that given a list of strings (a row), hashes the patient IDs (assumed to be in the first column)
+    using the BREASTSCAN encryption scheme, hashes the study UIDS which are assumed to be in the second column and returns the transformed row.
+    """
+
+    def mapper(row: list[str]) -> list[str]:
+        new_patient_id = hash_patient_id_bscan(row[0],encryptor=encryptor)
+
+        hashed_study_uid = hash_uid_using_key(
+            uid=row[1],
+            prefix=uidroot,
+            key=secret_key,
+        )
+
+        return [new_patient_id, hashed_study_uid, *row[2:]]
+
+    return mapper
+
+def hash_clinical_csvs_bscan(
+    input_dir: Path,
+    output_dir: Path,
+    *,
+    site_id:str,
+    secret_key: str,
+    uid_root: str = DEFAULT_UIDROOT,
+    ignore_prefix: str = DEFAULT_IGNORE_CSV_PREFIX,
+    verbose: bool = False,
+) -> None:
+    """
+    Checks the input_dir and finds the clinical CSV files in it. Then, for each file,
+    it parses and hashes the patient IDs. It only checks files with the ".csv" extension
+    located directly in the input directory (it does not search in subdirectories), and
+    skips files that start with the given `ignore_prefix`. Any csv file with a name that
+    starts with the given `ignore_prefix` is just copied to the output directory.
+    """
+    encryptor = IdentifierEncryptor(site_id, secret_key)
+    csvs = list(c for c in input_dir.glob("*.csv") if c.is_file())
+    if not csvs:
+        logger.warning("No CSV found in input directory")
+        return
+
+    csvs_to_be_copied = []
+    csvs_to_be_hashed = []
+    for csv in csvs:
+        if csv.name.startswith(ignore_prefix):
+            csvs_to_be_copied.append(csv)
+        else:
+            csvs_to_be_hashed.append(csv)
+    logger.info(
+        f"Found {len(csvs_to_be_hashed)} CSV file(s) in {input_dir} to be hashed "
+        f"and {len(csvs_to_be_copied)} CSV file(s) to be copied"
+    )
+    for input_clinical_csv in csvs_to_be_hashed:
+        output_clinical_csv = output_dir / input_clinical_csv.name
+        mapper = (
+            _clinical_hasher_factory_bscan(encryptor=encryptor)
+        )
+        if input_clinical_csv.name == DEFAULT_STUDIES_METADATA_CSV:
+            mapper = _studies_hasher_factory_bscan(
+                encryptor=encryptor,
+                secret_key=secret_key,
+                uidroot=uid_root,
             )
         _parse_and_hash_csv(
             input_clinical_csv,
