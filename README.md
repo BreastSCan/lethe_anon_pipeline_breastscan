@@ -28,7 +28,7 @@ The recommended use for the pipeline is launching it with a configuration file b
 This is the recommended approach. The following command shows the bare minimum information required to run the pipeline using a configuration file:
 
 ```
-docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/cbml-forth/eucaim_anon_pipeline run 
+docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run 
 ```
 
 where the options are as follows:
@@ -42,7 +42,7 @@ where the options are as follows:
 To see the list of available options, please run:
 
 ```
-docker run -it ghcr.io/cbml-forth/eucaim_anon_pipeline run --help
+docker run -it ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run --help
 ```
 which should return the following:
 
@@ -115,7 +115,7 @@ where only the site_id and the secret would be required.
 You can run the pipeline using the following command, which shows the bare minimum information required to run the pipeline without a configuration file:
 
 ```
-docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output ghcr.io/cbml-forth/eucaim_anon_pipeline run <SITE-ID> [OPTIONS]
+docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run <SITE-ID> [OPTIONS]
 ```
 
 where the options are as follows:
@@ -131,19 +131,19 @@ There are more options that can be specified in the command line.
 Approach intended for overwriting values in the config file through the CLI.
 
 ```
-docker run -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/cbml-forth/eucaim_anon_pipeline run [OPTIONS]
+docker run -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run [OPTIONS]
 ```
 
 Such as:
 ```
-docker run -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/cbml-forth/eucaim_anon_pipeline run --secret MyBreastScanPepper123 --threads 20 --paddle-ocr
+docker run -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run --secret MyBreastScanPepper123 --threads 20 --paddle-ocr
 ```
 
 #### PaddleOCR models
 PaddleOCR supports multiple different models for [text detection](https://paddlepaddle.github.io/PaddleX/latest/en/module_usage/tutorials/ocr_modules/text_detection.html), [text recognition](https://paddlepaddle.github.io/PaddleX/latest/en/module_usage/tutorials/ocr_modules/text_recognition.html), etc. By default in this Docker image we include the "lite" (mobile) models of PP-OCRv5: `PP-OCRv5_mobile_det` for text detection and `PP-OCRv5_mobile_rec` for text recognition as can be seen in the integrated [PaddleOCR.yaml](PaddleOCR.yaml) file. To further support additional models like the more complex and accurate "server" models, you can create your own YAML file (by copying the [PaddleOCR.yaml](PaddleOCR.yaml) file and modifying it) with the desired models and then running the `docker run` command with this new YAML file in the host machine mounted as `/app/PaddleOCR.yaml`, like so:
 
 ```
-docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v <PADDLEOCR_YAML_FILE>:/app/PaddleOCR.yaml -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/cbml-forth/eucaim_anon_pipeline run <SITE-ID> --paddle-ocr
+docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output -v <PADDLEOCR_YAML_FILE>:/app/PaddleOCR.yaml -v </PATH/TO/CONFIG_FILE>:/config/config.json ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run <SITE-ID> --paddle-ocr
 ```
 
 ### Clinical data
@@ -170,7 +170,7 @@ In addition to the `run` command that runs the DICOM de-idenitification pipeline
 As usual you can use the `--help`:
 
 ```
-docker run -it ghcr.io/cbml-forth/eucaim_anon_pipeline utils --help
+docker run -it ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest utils --help
 ```
 
 which shows the available utilities:
@@ -191,7 +191,7 @@ which shows the available utilities:
 
 So the following complete command:
 ```
-docker run -it ghcr.io/cbml-forth/eucaim_anon_pipeline utils secret
+docker run -it ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest utils secret
 ```
 
 will write in the console a string like `019a39ba16da7edb9e906440a48e9ed32` which can be used as a secret key in the `run` pipeline command.
