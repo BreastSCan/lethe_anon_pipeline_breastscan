@@ -93,7 +93,7 @@ def merge_settings(config: Settings, cli: dict) -> Settings:
 # Other utils
 def _create_secret_key() -> str:
     u = uuid7.create().hex
-    d = luhn.calc_check_digit(u, alphabet="0123456789abcdef")
+    d = luhn.calc_check_digit(u, alphabet="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
     return f"{u}{d}"
 
 def _valid_secret_key(secret_key: str,bscan_encrypt:bool) -> bool:
