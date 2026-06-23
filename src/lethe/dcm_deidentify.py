@@ -31,7 +31,6 @@ def run_ctp(
     anon_script: Path,
     site_id: str,
     pepper: str,
-    uid_root:str,
     threads: int,
     pseudonym_generator: PseudonymGenerator | None = None,
 ) -> None:
@@ -56,7 +55,7 @@ def run_ctp(
         "-n",
         str(threads),
         "-pUIDROOT",
-        uid_root,
+        site_id,
         "-pPROVIDERID",
         providerId,
         "-pSECRET_KEY",

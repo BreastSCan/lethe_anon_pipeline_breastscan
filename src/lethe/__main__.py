@@ -56,9 +56,8 @@ cli.add_typer(utils_cli, name="utils", help="Additional utilities")
 class Settings(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    site_id: str | None = None
+    site_id: str | None = str(DEFAULT_UIDROOT)
     pepper: str | None = Field(None, alias='secret')
-    uid_root: str | None = str(DEFAULT_UIDROOT)
     input_dir: Path = Path("/input")
     output_dir: Path = Path("/output")
     bscan_dcm_deidentify: bool = True
@@ -94,7 +93,8 @@ def merge_settings(config: Settings, cli: dict) -> Settings:
 def _create_secret_key() -> str:
     u = uuid7.create().hex
     d = luhn.calc_check_digit(u, alphabet="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    return f"{u}{d}"
+    # return f"{u}{d}"
+    return f"{u}"
 
 def _valid_secret_key(secret_key: str,bscan_encrypt:bool) -> bool:
     if bscan_encrypt:
@@ -107,11 +107,11 @@ def _valid_secret_key(secret_key: str,bscan_encrypt:bool) -> bool:
             return False
         return luhn.is_valid(secret_key, alphabet="0123456789abcdef")
 
-def _valid_uid(uid_root:str)->bool:
-    if len(uid_root) < 18:
+def _valid_uid(site_id:str)->bool:
+    if len(site_id) < 18:
         return False
     alphabet="0123456789."
-    return bool(uid_root) and all(c in alphabet for c in uid_root)
+    return bool(site_id) and all(c in alphabet for c in site_id)
 
 def _make_pseudonym_generator(
     state_dir: str,
@@ -359,14 +359,8 @@ def run(
     # Related to encryption
     site_id: Annotated[
         str | None,
-        typer.Argument(
-            help="The SITE-ID used for anonymization. It must be provided."
-        )
-    ] = None,
-    uid_root: Annotated[
-        str | None,
         typer.Option(
-            "--uid_root",
+            "--site_id",
             help=(
                 "The site OID which will be used as the root of the anonymized UIDs."
                 "Set to 'Computational BioMedicine Laboratory Greece's OID by default."
@@ -494,7 +488,6 @@ def run(
 
     cli_values = {
         "site_id": site_id,
-        "uid_root":uid_root,
         "input_dir": None,
         "output_dir": None,
         "pepper":pepper,
@@ -513,7 +506,6 @@ def run(
 
     settings = merge_settings(config_settings, cli_values)
     site_id = settings.site_id
-    uid_root = settings.uid_root
     input_dir = settings.input_dir
     output_dir = settings.output_dir
     pepper = settings.pepper
@@ -529,14 +521,10 @@ def run(
     pseudonym_prefix = settings.pseudonym_prefix
     state_dir = settings.state_dir
 
-    if not site_id:
+    if not _valid_uid(site_id):
         rich.print(
-            "[red][bold]Error:[/bold] Missing site id, use --help for usage information[/red]"
+            "[red][bold]Error:[/bold] Missing or invalid site id, use --help for usage information[/red]"
         )
-        sys.exit(1)
-
-    if not _valid_uid(uid_root):
-        rich.print("[red][bold]Error:[/bold] Invalid uid_root[/red]")
         sys.exit(1)
 
     if paddle_ocr and ocr:
@@ -551,9 +539,9 @@ def run(
         )
         sys.exit(1)
 
-    if bscan_dcm_deidentify and uid_root==str(DEFAULT_UIDROOT):
+    if bscan_dcm_deidentify and site_id==str(DEFAULT_UIDROOT):
         rich.print(
-            "[red][bold]Warning:[/bold] Using 'Computational BioMedicine Laboratory Greece's OID as the UID_ROOT. Which is the value by default. Each BREASTSCAN data holder should have an independent OID provided by an institution.[/red]"
+            "[red][bold]Warning:[/bold] Using 'Computational BioMedicine Laboratory Greece's OID as the site_id (UID_ROOT). Which is the value by default. Each BREASTSCAN data holder should have an independent OID provided by an institution.[/red]"
         )
 
     if not pepper:
@@ -612,7 +600,6 @@ def run(
             anon_script=anon_script,
             site_id=site_id,
             pepper=pepper,
-            uid_root = uid_root,
             threads=threads,
             pseudonym_generator=pseudonym_gen,
         )
@@ -631,7 +618,6 @@ def run(
             output_dir,
             site_id=site_id,
             secret_key=pepper,
-            uid_root = uid_root,
             verbose=verbose,
         )
     elif dcm_deidentify:

@@ -334,7 +334,14 @@ def _studies_hasher_factory_bscan(
             key=secret_key,
         )
 
-        return [new_patient_id, hashed_study_uid, *row[2:]]
+        hashed_series_uid = hash_uid_using_key(
+            uid=row[2],
+            prefix=uidroot,
+            key=secret_key,
+        )
+
+
+        return [new_patient_id, hashed_study_uid, hashed_series_uid, *row[3:]]
 
     return mapper
 
@@ -342,9 +349,8 @@ def hash_clinical_csvs_bscan(
     input_dir: Path,
     output_dir: Path,
     *,
-    site_id:str,
+    site_id:str = DEFAULT_UIDROOT,
     secret_key: str,
-    uid_root: str = DEFAULT_UIDROOT,
     ignore_prefix: str = DEFAULT_IGNORE_CSV_PREFIX,
     verbose: bool = False,
 ) -> None:
@@ -381,7 +387,7 @@ def hash_clinical_csvs_bscan(
             mapper = _studies_hasher_factory_bscan(
                 encryptor=encryptor,
                 secret_key=secret_key,
-                uidroot=uid_root,
+                uidroot=site_id,
             )
         _parse_and_hash_csv(
             input_clinical_csv,

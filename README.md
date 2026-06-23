@@ -47,11 +47,8 @@ docker run -it ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run --he
 which should return the following:
 
 ```
-╭─ Arguments ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│   site_id      [SITE_ID]  The SITE-ID used for anonymization. It must be provided.                                                                       │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ --uid_root                                   TEXT     The site OID which will be used as the root of the anonymized UIDs.Set to 'Computational           │
+│ --site_id                                    TEXT     The site OID which will be used as the root of the anonymized UIDs.Set to 'Computational           │
 │                                                       BioMedicine Laboratory Greece's OID by default.Each BREASTSCAN Data Holder should have an          │
 │                                                       independent OID provided by an institution.                                                        │
 │ --secret                                     TEXT     Use the supplied key as the secret key for the anonymization. This also enables                    │
@@ -61,13 +58,13 @@ which should return the following:
 │                                                       the user. It should be between 8 and 32 characters long and exclusively numbers or letters.If      │
 │                                                       BREASTSCAN encryption is disabled, the key will be automatically generated and can be displayed to │
 │                                                       the console with the 'verbose' option.                                                             │
-│ --bs_hash               --no-bs_hash                  Perform encryption of the patientIDs based on the BREASTSCAN scheme.Uses the RSNA CTP anonymizer   │
-│                                                       and the custom script.Set to TRUE by default.                                                      │
+│ --bs_hash               --no-bs_hash                  Perform encryption of the patientIDs based on the BREASTSCAN scheme. Uses the RSNA CTP anonymizer  │
+│                                                       and the custom script. Set to TRUE by default.                                                     │
 │ --ctp                   --no-ctp                      Perform deidentification in the DICOM metadata in image files. Uses the RSNA CTP anonymizer and    │
-│                                                       the custom script.Set to TRUE by default.                                                          │
-│ --pseudonymize                                        Perform pseudonymization by keeping a lookup table for patient ids in the `state-dir` folder.The   │
+│                                                       the custom script. Set to TRUE by default.                                                         │
+│ --pseudonymize                                        Perform pseudonymization by keeping a lookup table for patient ids in the `state-dir` folder. The  │
 │                                                       generated pseudonyms will be of the form `{pseudonym_prefix}{number}`, where the number is         │
-│                                                       generated sequentially starting from 1 but reusing existing mappings.Only relevant if BREASTSCAN   │
+│                                                       generated sequentially starting from 1 but reusing existing mappings. Only relevant if BREASTSCAN  │
 │                                                       encryption is disabled. Set to FALSE by default.                                                   │
 │ --ocr                                                 Perform OCR (using Tesseract OCR). Set to FALSE by default.                                        │
 │ --paddle-ocr                                          Perform OCR using PaddleOCR. Set to FALSE by default.                                              │
@@ -100,9 +97,8 @@ The config file must be a JSON file with the aforementioned options. For instanc
 
 ```json
 {
-    "site_id":"HULAFE",
-    "secret":"BREASTCAN",
-    "uid_root":"1.8.6.1.4.1.58108.2027",
+    "site_id":"1.8.6.1.4.1.58108.2027",
+    "secret":"0123456789",
     "threads":200,
     "ocr":true
 }
@@ -115,14 +111,15 @@ where only the site_id and the secret would be required.
 You can run the pipeline using the following command, which shows the bare minimum information required to run the pipeline without a configuration file:
 
 ```
-docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run <SITE-ID> [OPTIONS]
+docker run -it -v <INPUT-DIR>:/input -v <OUTPUT-DIR>:/output ghcr.io/breastscan/lethe_anon_pipeline_breastscan:latest run [OPTIONS]
 ```
 
 where the options are as follows:
 
-* `<INPUT-DIR>` is the folder on the local machine where the DICOM files to be anonymized reside. Please note that this folder could also contain a CSV file with clinical data so that those data can be properly linked with the anonymized DICOM files (details below)
+* `<INPUT-DIR>` is the folder on the local machine where the DICOM files to be anonymized reside. Please note that this folder could also contain one or several
+CSV files with clinical data so that those data can be properly linked with the anonymized DICOM files (details below)
 * `<OUTPUT-DIR>` is the folder on the local machine where the anonymized DICOM files will be written to. In this folder, a new CSV will be also produced containing the anonymized clinical data, should the input folder had one.
-* `<SITE-ID>` is the SITE-ID provided by the EUCAIM Technical team and it's a mandatory parameter to the pipeline to be used as "provider id" (after hashing it...) and as part of the encryption key if the BREASTSCAN encryption scheme is enabled.
+
 
 There are more options that can be specified in the command line. 
 
