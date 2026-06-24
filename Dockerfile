@@ -1,6 +1,6 @@
 FROM debian:trixie-slim
-LABEL org.opencontainers.image.vendor="CBML, FORTH-ICS"
-LABEL vendor="CBML, FORTH-ICS"
+LABEL org.opencontainers.image.vendor="CBML, FORTH-ICS, HULAFE, IACS"
+LABEL vendor="CBML, FORTH-ICS, HULAFE, IACS"
 LABEL org.opencontainers.image.url="https://github.com/cbml-forth/lethe_anon_pipeline"
 LABEL org.opencontainers.image.description="LETHE Dicom Anonymization pipeline"
 LABEL description="LETHE Dicom Anonymization pipeline"

@@ -133,8 +133,9 @@ def _header_info() -> str:
     ███████╗███████╗   ██║   ██║  ██║███████╗
     ╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝
     Version: {__version__}
-    "Lethe" DICOM Anonymization Tool, by CBML, FORTH-ICS
+    "Lethe" DICOM Anonymization Tool, by CBML, FORTH-ICS, HULAFE, IACS
     Licensed under the EUPL v1.2
+    Forked from original "Lethe" DICOM Anonymization tool for the BreastSCan project
     Provided "as is" without warranty. Use at your own risk.
 
     """,
